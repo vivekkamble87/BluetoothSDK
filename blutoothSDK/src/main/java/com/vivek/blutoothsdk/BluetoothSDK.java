@@ -179,34 +179,41 @@ public class BluetoothSDK {
 
                 // Start the bonding process
                 boolean bonded = device.createBond();
+                if (!bonded) {
+                    Log.e("BluetoothSDK", "Failed to start bonding process");
+                    callback.onPairingFailed(device);
+                    return;
+                }
                 BroadcastReceiver receiver = new BroadcastReceiver() {
                     @Override
                     public void onReceive(Context context, Intent intent) {
                         String action = intent.getAction();
                         if (BluetoothDevice.ACTION_BOND_STATE_CHANGED.equals(action)) {
-                            BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+                            BluetoothDevice bondedDevice = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
                             int bondState = intent.getIntExtra(BluetoothDevice.EXTRA_BOND_STATE, BluetoothDevice.BOND_NONE);
 
-                            switch (bondState) {
-                                case BluetoothDevice.BOND_NONE:
-                                    Log.e("BluetoothSDK", "Bonding failed or bond removed for device: " + device.getAddress());
-                                    callback.onPairingFailed(device);
-                                    break;
+                            if (bondedDevice != null && bondedDevice.equals(device)) {
+                                switch (bondState) {
+                                    case BluetoothDevice.BOND_NONE:
+                                        Log.e("BluetoothSDK", "Bonding failed or bond removed for device: " + device.getAddress());
+                                        callback.onPairingFailed(device);
+                                        break;
 
-                                case BluetoothDevice.BOND_BONDING:
-                                    Log.d("BluetoothSDK", "Bonding in progress for device: " + device.getAddress());
-                                    // Optionally, notify UI or log progress
-                                    break;
+                                    case BluetoothDevice.BOND_BONDING:
+                                        Log.d("BluetoothSDK", "Bonding in progress for device: " + device.getAddress());
+                                        // Optionally, notify UI or log progress
+                                        break;
 
-                                case BluetoothDevice.BOND_BONDED:
-                                    Log.d("BluetoothSDK", "Device bonded successfully: " + device.getAddress());
-                                    callback.onPaired(device);
+                                    case BluetoothDevice.BOND_BONDED:
+                                        Log.d("BluetoothSDK", "Device bonded successfully: " + device.getAddress());
+                                        callback.onPaired(device);
+                                        initiateGattConnection(device, callback);
+                                        break;
 
-                                    break;
-
-                                default:
-                                    Log.w("BluetoothSDK", "Unknown bond state: " + bondState + " for device: " + device.getAddress());
-                                    break;
+                                    default:
+                                        Log.w("BluetoothSDK", "Unknown bond state: " + bondState + " for device: " + device.getAddress());
+                                        break;
+                                }
                             }
                         }
                     }
